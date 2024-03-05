@@ -32,9 +32,9 @@ def get_params_specs(spec_hr_file):
         raise FileNotFoundError(
             "Human readable file not found: {}".format(spec_hr_file)
         )
-    params = pd.read_csv(spec_hr_file, delim_whitespace=True, nrows=1)
+    params = pd.read_csv(spec_hr_file, sep='\s+', nrows=1)
     specs = pd.read_csv(
-        spec_hr_file, skiprows=3, delim_whitespace=True, header=None
+        spec_hr_file, skiprows=3, sep='\s+', header=None
     )
     n_sites = params.n_sites[0]
     n_fils = params.n_filaments[0]
@@ -157,7 +157,7 @@ class SpecReader:
         self._bpos = 0
 
     def make_human_readable(self):
-        """Convert spec file from binary to plaintext with extension '.hr'"""
+        """Convert spec file from binary to plaintext with extension '.hr'. NAK: added support for filaments with variable length"""
 
         with open(self._input_file, "rb", 0) as f, mmap(
             f.fileno(), 0, access=ACCESS_READ
@@ -183,28 +183,36 @@ class SpecReader:
             num = self._read("i", s)
             details = self._read("ddd", s)
             n_sites = self._read("i", s)
+            all_n_sites = [n_sites]
             posits = list(self._read("ddd" * n_sites, s))
             perlen = self._read("d", s)
-            self._bpos += calcsize("c")
-            self._write(list(header) + [num] + list(details) + [perlen, n_sites], fout)
-            self._write(["site_positions_x_y_z"], fout)
+            self._bpos += calcsize("dB")
+            
+            
             for fil in range(1, num):
-                self._bpos += calcsize("dddi")
+                self._bpos += calcsize("ddd")
+                n_sites = self._read("i",s)
+                all_n_sites.append(n_sites)
                 posits += list(self._read("ddd" * n_sites, s))
-                self._bpos += calcsize("dc")
+                perlen = self._read("d", s) # NAK should we add other perlen values to the output?
+                self._bpos += calcsize("dB")
+            self._write(list(header) + [num] + list(details) + [perlen] + all_n_sites, fout)
+            self._write(["site_positions_x_y_z"], fout)
             self._write(posits, fout)
             for sample in range(1, n_samples):
                 self._bpos += calcsize("i")
                 posits = []
                 for fil in range(num):
-                    self._bpos += calcsize("dddi")
+                    self._bpos += calcsize("ddd")
+                    n_sites = self._read("i",s)
                     posits += list(self._read("ddd" * n_sites, s))
-                    self._bpos += calcsize("dc")
+                    self._bpos += calcsize("ddB")
                 self._write(posits, fout)
         self._bpos = 0
 
     def get_params_specs(self):
         """Return spec file parameters and specs timeseries as dataframes
+        NAK: changed to support specs with variable species sizes.
 
         Returns:
             (DataFrame, DataFrame): Pandas DataFrame of parameters from spec file header
@@ -215,27 +223,33 @@ class SpecReader:
             raise FileNotFoundError(
                 "Human readable file not found: {}".format(self._output_file)
             )
-        params = pd.read_csv(self._output_file, delim_whitespace=True, nrows=1)
+        with open(self._output_file,"r") as f: # NAK: added to recover the list of n_sites
+            headers = f.readline().split()
+        params = pd.read_csv(self._output_file, sep='\s+', skiprows=1, nrows=1, header=None)
+        headers.pop()
+        header_offset = len(headers)
+        headers += [f"n_sites{i}" for i in range(params.shape[1]-header_offset)]
+        params.columns = headers
         specs = pd.read_csv(
-            self._output_file, skiprows=3, delim_whitespace=True, header=None
+            self._output_file, skiprows=3, sep='\s+', header=None
         )
-        n_sites = params.n_sites[0]
+        n_sites = list(params.iloc[0][header_offset:])
         n_fils = params.n_filaments[0]
         fil_labels = [
             i
             for sub in [
-                ["fil{:03d}".format(i)] * 3 * n_sites for i in range(n_fils)
+                ["fil{:03d}".format(i)] * 3 * int(n_sites[i]) for i in range(n_fils)
             ]
             for i in sub
         ]
         site_labels = [
             i
             for sub in [
-                ["site{:03d}".format(i)] * 3 for i in range(n_sites)
-            ] * n_fils
+                ["site{:03d}".format(i)] * 3 for fil in range(n_fils) for i in range(int(n_sites[fil]))
+            ]
             for i in sub
         ]
-        arrays = [fil_labels, site_labels, ["x", "y", "z"] * n_sites * n_fils]
+        arrays = [fil_labels, site_labels, ["x", "y", "z"] * (len(site_labels)//3)]
         columns = pd.MultiIndex.from_arrays(
             arrays, names=["filament", "site", "coord"]
         )

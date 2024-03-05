@@ -435,8 +435,10 @@ template <typename T, unsigned char S> void Species<T, S>::ReadSpecs() {
   }
   for (auto it = members_.begin(); it != members_.end(); ++it)
     it->ReadSpec(ispec_file_);
+  /* NAK: this part seems to cause a crash, commenting out
     n_members_ = -1;
     ispec_file_.read(reinterpret_cast<char *>(&n_members_), sizeof(int));
+  */
 }
 
 // Convert data from spec file to text output
