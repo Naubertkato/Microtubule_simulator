@@ -267,6 +267,7 @@ struct system_parameters {
   double lj_epsilon = 1;
   double wca_eps = 1;
   double wca_sig = 1;
+  double temperature = 1;
   double ss_a = 1;
   double ss_rs = 1.5;
   double ss_eps = 1;
