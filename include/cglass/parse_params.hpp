@@ -86,7 +86,6 @@ system_parameters parse_system_params(YAML::Node &node) {
     params.wca_sig = it->second.as<double>();
     } else if (param_name.compare("temperature")==0) {
       params.temperature = it->second.as<double>();
-    }
     } else if (param_name.compare("ss_a")==0) {
     params.ss_a = it->second.as<double>();
     } else if (param_name.compare("ss_rs")==0) {
