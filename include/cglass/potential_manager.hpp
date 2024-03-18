@@ -8,6 +8,7 @@
 #include "soft_potential.hpp"
 #include "soft_shoulder_potential.hpp"
 #include "wca_potential.hpp"
+#include "temperature_potential.hpp"
 
 class PotentialManager {
  private:
@@ -17,6 +18,7 @@ class PotentialManager {
   LennardJonesPotential lj_;
   SoftPotential soft_;
   MaxForcePotential max_;
+  TemeraturePotential temp_;
   // R2Potential r2pot_;
   // SoftShoulderPotential sspot_;
   PotentialBase *pot_;
@@ -52,6 +54,10 @@ class PotentialManager {
         max_.Init(params);
         break;
       }
+    case potential_type::temperature: {
+      pot_ = &temp_;
+      break;
+    }
       default:
         Logger::Error("Potential type not set up in potential_manager.hpp");
     }
