@@ -18,7 +18,7 @@ class PotentialManager {
   LennardJonesPotential lj_;
   SoftPotential soft_;
   MaxForcePotential max_;
-  TemeraturePotential temp_;
+  TemperaturePotential temp_;
   // R2Potential r2pot_;
   // SoftShoulderPotential sspot_;
   PotentialBase *pot_;
